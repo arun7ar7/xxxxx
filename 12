@@ -1,0 +1,299 @@
+<%@ Page Language="C#" AutoEventWireup="true" CodeFile="Default3.aspx.cs" Inherits="Default3" %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sales Invoice Entry</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+        <script>
+            var serialNumber = 1; // Variable to track serial number
+
+            // Mock data for UOM dropdown
+            var uomData = ["UOM1", "UOM2", "UOM3"];
+
+            $(document).ready(function () {
+                // Initialize UOM dropdown
+                var ddlUOM = $("#ddlUOM");
+                $.each(uomData, function (index, value) {
+                    ddlUOM.append($("<option>").text(value).val(value));
+                });
+
+                // Generate and display the next invoice number
+                generateInvoiceNumber();
+            });
+
+            function generateInvoiceNumber() {
+                // Mock implementation, replace with your logic to get the next invoice number from the server
+                var nextInvoiceNumber = 1001;
+                $("#txtInvoiceNumber").val(nextInvoiceNumber);
+            }
+
+            function addItem() {
+                // Get values from input fields
+                var itemName = $("#txtItemName").val();
+                var uom = $("#ddlUOM").val();
+                var quantity = $("#txtQuantity").val();
+                var rate = $("#txtRate").val();
+
+                // Append a new row to the temporary data table
+                var newRow = $("<tr>").append(
+                    $("<td>").text(serialNumber),
+                    $("<td>").text(itemName),
+                    $("<td>").text(uom),
+                    $("<td>").text(quantity),
+                    $("<td>").text(rate),
+                    $("<td>").html("<button onclick='deleteItem(this)'>Delete</button>")
+                );
+                $("#tblInvoiceDetails tbody").append(newRow);
+
+                // Increment serial number
+                serialNumber++;
+
+                // Clear input fields after adding an item
+                $("#txtItemName, #ddlUOM, #txtQuantity, #txtRate").val("");
+            }
+
+            function deleteItem(button) {
+                // Delete the row containing the clicked button
+                $(button).closest("tr").remove();
+
+                // Update serial numbers after deletion
+                updateSerialNumbers();
+            }
+
+            function updateSerialNumbers() {
+                // Update serial numbers in the table
+                $("#tblInvoiceDetails tbody tr").each(function (index, row) {
+                    $(row).find("td:first").text(index + 1);
+                });
+
+                // Update the global variable for serial number
+                serialNumber = $("#tblInvoiceDetails tbody tr").length + 1;
+            }
+
+            // ... (previous JavaScript code) ...
+
+            function saveInvoice() {
+                // Get header data
+                var invoiceNumber = $("#txtInvoiceNumber").val();
+                var invoiceDate = $("#datepicker").val();
+                var customerName = $("#txtCustomerName").val();
+
+                alert(invoiceNumber);
+                alert(invoiceDate);
+                alert(customerName);
+                // Get detail data
+                var details = [];
+                $("#tblInvoiceDetails tbody tr").each(function () {
+                    var serialNumber = $(this).find("td:eq(0)").text();
+                    var itemName = $(this).find("td:eq(1)").text();
+                    var uom = $(this).find("td:eq(2)").text();
+                    var quantity = $(this).find("td:eq(3)").text();
+                    var rate = $(this).find("td:eq(4)").text();
+
+                    alert(serialNumber);
+                    alert(itemName);
+                    alert(uom);
+                    alert(quantity);
+                    alert(rate);
+
+                    details.push({
+                        SerialNumber: serialNumber,
+                        ItemName: itemName,
+                        UOM: uom,
+                        Quantity: quantity,
+                        Rate: rate
+                    });
+                });
+
+                // Send data to the server for saving
+                $.ajax({
+                    type: "POST",
+                    url: "WebService.asmx/SaveInvoice", // Replace with the actual URL of your C# web service
+                    contentType: "application/json; charset=utf-8",
+                    data: JSON.stringify({
+                        InvoiceNumber: invoiceNumber,
+                        InvoiceDate: invoiceDate,
+                        CustomerName: customerName,
+                       // Details: details
+                    }),
+                    success: function (response) {
+                        console.log("Save Invoice success:", response);
+                        // Handle the server response
+                        alert(response.d); // Display an alert or update the UI as needed
+                    },
+                    error: function (error) {
+                        console.log(error);
+                    }
+                });
+            }
+
+
+        </script>
+</head>
+<body>
+
+    <h1>Sales Invoice Entry</h1>
+
+    <label for="txtInvoiceNumber">Invoice Number:</label>
+    <input type="text" id="txtInvoiceNumber" readonly>
+    
+    <label for="datepicker">Invoice Date:</label>
+    <input type="date" id="datepicker">
+    
+    <label for="txtCustomerName">Customer Name:</label>
+    <input type="text" id="txtCustomerName">
+    
+    <hr>
+    
+    <h2>Item Details</h2>
+    
+    <label for="txtItemName">Item Name:</label>
+    <input type="text" id="txtItemName">
+    
+    <label for="ddlUOM">UOM:</label>
+    <select id="ddlUOM">
+        <!-- UOM options will be populated dynamically -->
+    </select>
+    
+    <label for="txtQuantity">Quantity:</label>
+    <input type="text" id="txtQuantity">
+    
+    <label for="txtRate">Rate:</label>
+    <input type="text" id="txtRate">
+    
+    <button onclick="addItem()">Add Item</button>
+    
+    <hr>
+    
+    <h2>Temporary Data Table</h2>
+    
+    <table id="tblInvoiceDetails">
+        <thead>
+            <tr>
+                <th>Serial Number</th>
+                <th>Item Name</th>
+                <th>UOM</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    
+<button onclick="saveInvoice()">Save Invoice</button>
+
+
+</body>
+</html>using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Web.Script.Services;
+using System.Web.Services;
+
+
+    public class WebService : System.Web.Services.WebService
+    {
+
+        private string connectionString = @"Data Source=DESKTOP-DOOTGDM\SQLEXPRESS;Initial Catalog=SANS;User ID=sa;Password=sql@123";
+
+    [WebMethod]
+    [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+    public string SaveInvoice(string InvoiceNumber, string InvoiceDate, string CustomerName)//, List<InvoiceDetail> Details)
+    {
+        
+        
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            try
+            {
+            connection.Open();
+
+            // Save header data to sal_inv_hd table
+            string insertHeaderQuery = "INSERT INTO sal_inv_hd (inv_number, inv_date, cust_id) VALUES (@InvoiceNumber, @InvoiceDate, @CustomerId)";
+            using (SqlCommand cmdHeader = new SqlCommand(insertHeaderQuery, connection))
+            {
+                cmdHeader.Parameters.AddWithValue("@InvoiceNumber", InvoiceNumber);
+                cmdHeader.Parameters.AddWithValue("@InvoiceDate", InvoiceDate);
+                cmdHeader.Parameters.AddWithValue("@CustomerId", GetCustomerId(CustomerName)); // Implement GetCustomerId method
+                cmdHeader.ExecuteNonQuery();
+            }
+
+            // Get the invoice header ID
+            //int invoiceId;
+            //string getInvoiceIdQuery = "SELECT SCOPE_IDENTITY()";
+            //using (SqlCommand cmdGetId = new SqlCommand(getInvoiceIdQuery, connection))
+            //{
+            //    invoiceId = Convert.ToInt32(cmdGetId.ExecuteScalar());
+            //}
+
+            //// Save detail data to sal_inv_det table
+            //string insertDetailQuery = "INSERT INTO sal_inv_det (inv_id, item_id, qty, rate) VALUES (@InvoiceId, @ItemId, @Quantity, @Rate)";
+            //foreach (var detail in Details)
+            //{
+            //    using (SqlCommand cmdDetail = new SqlCommand(insertDetailQuery, connection))
+            //    {
+            //        cmdDetail.Parameters.AddWithValue("@InvoiceId", invoiceId);
+            //        cmdDetail.Parameters.AddWithValue("@ItemId", GetItemId(detail.ItemName)); // Implement GetItemId method
+            //        cmdDetail.Parameters.AddWithValue("@Quantity", detail.Quantity);
+            //        cmdDetail.Parameters.AddWithValue("@Rate", detail.Rate);
+            //        cmdDetail.ExecuteNonQuery();
+            //    }
+            //}
+
+            return "Invoice saved successfully!";
+        }
+         catch (Exception ex)
+    {
+            // Log or handle the exception appropriately
+            return "Error: " + ex.Message;
+        }
+    }
+
+    private int GetCustomerId(string customerName)
+        {
+            // Implement logic to get the customer ID based on the customerName
+            // Use SELECT cust_id FROM mst_cust WHERE cust_name = @customerName
+            // Execute the query and return the result
+            return 0; // Placeholder, replace with actual logic
+        }
+
+        private int GetItemId(string itemName)
+        {
+            // Implement logic to get the item ID based on the itemName
+            // Use SELECT item_id FROM mst_item WHERE item_name = @itemName
+            // Execute the query and return the result
+            return 0; // Placeholder, replace with actual logic
+        }
+
+
+        public class InvoiceDetail
+        {
+            public string SerialNumber { get; set; }
+            public string ItemName { get; set; }
+            public string UOM { get; set; }
+            public string Quantity { get; set; }
+            public string Rate { get; set; }
+        }
+    }  
+
+
+CREATE TABLE sal_inv_hd (
+    inv_id INT PRIMARY KEY IDENTITY(1,1),
+    inv_number INT,
+    inv_date smalldatetime,
+    cust_id INT,
+    --FOREIGN KEY (cust_id) REFERENCES mst_cust(cust_id)
+);
+
+CREATE TABLE sal_inv_det (
+    inv_det_id INT PRIMARY KEY IDENTITY(1,1),
+    inv_id INT,
+    item_id INT,
+    qty INT,
+    rate DECIMAL(18, 2),
+    FOREIGN KEY (inv_id) REFERENCES sal_inv_hd(inv_id),
+   -- FOREIGN KEY (item_id) REFERENCES mst_item(item_id)
+);
+
